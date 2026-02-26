@@ -1,17 +1,17 @@
+use nalgebra_glm as glm;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
+use wgpu::util::DeviceExt;
 use winit::{
     event::*,
-    event_loop::{EventLoop},
+    event_loop::EventLoop,
     keyboard::{Key, NamedKey},
     window::{Window, WindowBuilder},
 };
-use nalgebra_glm as glm;
-use wgpu::util::DeviceExt;
 
 mod camera;
-mod physics;
 mod geometry;
+mod physics;
 mod texture;
 
 use camera::Camera;
@@ -64,23 +64,37 @@ impl<'a> State<'a> {
     async fn new(window: &'a Window, num_particles: usize) -> Self {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(), ..Default::default()
+            backends: wgpu::Backends::all(),
+            ..Default::default()
         });
         let surface = instance.create_surface(window).unwrap();
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::default(),
-            compatible_surface: Some(&surface),
-            force_fallback_adapter: false,
-        }).await.unwrap();
-        let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor {
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::default(),
-            label: None,
-        }, None).await.unwrap();
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::default(),
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            })
+            .await
+            .unwrap();
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
+                    label: None,
+                },
+                None,
+            )
+            .await
+            .unwrap();
 
         let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps.formats.iter().copied()
-            .find(|f| f.is_srgb()).unwrap_or(surface_caps.formats[0]);
+        let surface_format = surface_caps
+            .formats
+            .iter()
+            .copied()
+            .find(|f| f.is_srgb())
+            .unwrap_or(surface_caps.formats[0]);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -98,7 +112,12 @@ impl<'a> State<'a> {
 
         let camera = Arc::new(Mutex::new(Camera::new(glm::vec3(0.0, 0.0, 0.0), 30.0)));
         let mut camera_uniform = CameraUniform::new();
-        let projection = glm::perspective_zo(size.width as f32 / size.height as f32, glm::radians(&glm::vec1(45.0))[0], 0.1, 100.0);
+        let projection = glm::perspective_zo(
+            size.width as f32 / size.height as f32,
+            glm::radians(&glm::vec1(45.0))[0],
+            0.1,
+            100.0,
+        );
         camera_uniform.update_view_proj(&camera.lock().unwrap(), &projection);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -107,19 +126,20 @@ impl<'a> State<'a> {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let camera_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("camera_bind_group_layout"),
-        });
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("camera_bind_group_layout"),
+            });
 
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &camera_bind_group_layout,
@@ -132,11 +152,12 @@ impl<'a> State<'a> {
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
-        let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[&camera_bind_group_layout],
-            push_constant_ranges: &[],
-        });
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[&camera_bind_group_layout],
+                push_constant_ranges: &[],
+            });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
@@ -154,7 +175,7 @@ impl<'a> State<'a> {
                         array_stride: std::mem::size_of::<InstanceRaw>() as wgpu::BufferAddress,
                         step_mode: wgpu::VertexStepMode::Instance,
                         attributes: &wgpu::vertex_attr_array![1 => Float32x3, 2 => Float32x4],
-                    }
+                    },
                 ],
             },
             fragment: Some(wgpu::FragmentState {
@@ -191,7 +212,10 @@ impl<'a> State<'a> {
         });
 
         let sphere_vertices_glm = geometry::generate_sphere(1.0, 10, 10);
-        let sphere_vertices: Vec<[f32; 3]> = sphere_vertices_glm.iter().map(|v| [v.x, v.y, v.z]).collect();
+        let sphere_vertices: Vec<[f32; 3]> = sphere_vertices_glm
+            .iter()
+            .map(|v| [v.x, v.y, v.z])
+            .collect();
         let sphere_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Sphere Vertex Buffer"),
             contents: bytemuck::cast_slice(&sphere_vertices),
@@ -203,17 +227,24 @@ impl<'a> State<'a> {
         let particles = physics::generate_particles(num_particles);
         println!("Done.");
 
-        let instance_data = particles.iter().map(|p| InstanceRaw {
-            position: [p.position.x as f32, p.position.y as f32, p.position.z as f32],
-            color: [p.color.x, p.color.y, p.color.z, p.color.w],
-        }).collect::<Vec<_>>();
+        let instance_data = particles
+            .iter()
+            .map(|p| InstanceRaw {
+                position: [
+                    p.position.x as f32,
+                    p.position.y as f32,
+                    p.position.z as f32,
+                ],
+                color: [p.color.x, p.color.y, p.color.z, p.color.w],
+            })
+            .collect::<Vec<_>>();
 
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
             usage: wgpu::BufferUsages::VERTEX,
         });
-        
+
         Self {
             window,
             surface,
@@ -234,7 +265,9 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn window(&self) -> &Window { self.window }
+    pub fn window(&self) -> &Window {
+        self.window
+    }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
@@ -242,13 +275,16 @@ impl<'a> State<'a> {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
-            self.depth_view = texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+            self.depth_view =
+                texture::create_depth_texture(&self.device, &self.config, "depth_texture");
         }
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
         match event {
-            WindowEvent::KeyboardInput { event: key_event, .. } if key_event.state == ElementState::Pressed => {
+            WindowEvent::KeyboardInput {
+                event: key_event, ..
+            } if key_event.state == ElementState::Pressed => {
                 if key_event.logical_key == Key::Named(NamedKey::Escape) {
                     return true;
                 }
@@ -261,10 +297,16 @@ impl<'a> State<'a> {
                 self.camera.lock().unwrap().process_scroll(y_offset);
             }
             WindowEvent::MouseInput { button, state, .. } => {
-                self.camera.lock().unwrap().process_mouse_button(*button, *state);
+                self.camera
+                    .lock()
+                    .unwrap()
+                    .process_mouse_button(*button, *state);
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.camera.lock().unwrap().process_mouse_move(position.x, position.y);
+                self.camera
+                    .lock()
+                    .unwrap()
+                    .process_mouse_move(position.x, position.y);
             }
             _ => {}
         }
@@ -272,17 +314,31 @@ impl<'a> State<'a> {
     }
 
     fn update(&mut self) {
-        let projection = glm::perspective_zo(self.size.width as f32 / self.size.height as f32, glm::radians(&glm::vec1(45.0))[0], 0.1, 100.0);
-        self.camera_uniform.update_view_proj(&self.camera.lock().unwrap(), &projection);
-        self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
+        let projection = glm::perspective_zo(
+            self.size.width as f32 / self.size.height as f32,
+            glm::radians(&glm::vec1(45.0))[0],
+            0.1,
+            100.0,
+        );
+        self.camera_uniform
+            .update_view_proj(&self.camera.lock().unwrap(), &projection);
+        self.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.camera_uniform]),
+        );
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -291,7 +347,12 @@ impl<'a> State<'a> {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.3, g: 0.3, b: 0.3, a: 1.0 }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.05,
+                            g: 0.05,
+                            b: 0.05,
+                            a: 1.0,
+                        }),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -326,14 +387,20 @@ fn get_quantum_number(prompt: &str, default: i32) -> i32 {
         print!("{} (default: {}): ", prompt, default);
         io::stdout().flush().unwrap();
         let mut input = String::new();
-        io::stdin().read_line(&mut input).expect("Failed to read line");
-        
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+
         let trimmed = input.trim();
-        if trimmed.is_empty() { return default; }
-        
+        if trimmed.is_empty() {
+            return default;
+        }
+
         match trimmed.parse::<i32>() {
             Ok(num) => return num,
-            Err(_) => println!("Invalid input. Please enter an integer or press Enter for default."),
+            Err(_) => {
+                println!("Invalid input. Please enter an integer or press Enter for default.")
+            }
         }
     }
 }
@@ -349,7 +416,9 @@ fn get_particle_count() -> usize {
         io::stdout().flush().unwrap();
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).expect("Failed to read line");
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
         let trimmed = input.trim();
 
         let choice = if trimmed.is_empty() {
@@ -368,16 +437,16 @@ fn get_particle_count() -> usize {
             1 => return 10_000,
             2 => return 100_000,
             3 => return 500_000,
-            4 => {
-                loop {
-                    print!("Enter custom particle count: ");
-                    io::stdout().flush().unwrap();
-                    let mut custom_input = String::new();
-                    io::stdin().read_line(&mut custom_input).expect("Failed to read line");
-                    match custom_input.trim().parse::<usize>() {
-                        Ok(num) if num > 0 => return num,
-                        _ => println!("Invalid input. Please enter a positive number."),
-                    }
+            4 => loop {
+                print!("Enter custom particle count: ");
+                io::stdout().flush().unwrap();
+                let mut custom_input = String::new();
+                io::stdin()
+                    .read_line(&mut custom_input)
+                    .expect("Failed to read line");
+                match custom_input.trim().parse::<usize>() {
+                    Ok(num) if num > 0 => return num,
+                    _ => println!("Invalid input. Please enter a positive number."),
                 }
             },
             _ => {
@@ -411,7 +480,7 @@ pub fn main() {
 
         break (n, l, m);
     };
-    
+
     *physics::N.lock().unwrap() = n;
     *physics::L.lock().unwrap() = l;
     *physics::M.lock().unwrap() = m;
@@ -427,8 +496,8 @@ pub fn main() {
 
     let mut state = pollster::block_on(State::new(&window, num_particles));
 
-    event_loop.run(move |event, elwt| {
-        match event {
+    event_loop
+        .run(move |event, elwt| match event {
             Event::WindowEvent {
                 ref event,
                 window_id,
@@ -460,6 +529,6 @@ pub fn main() {
                 state.window().request_redraw();
             }
             _ => {}
-        }
-    }).unwrap();
+        })
+        .unwrap();
 }
