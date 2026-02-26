@@ -1,5 +1,6 @@
 use nalgebra_glm as glm;
 use std::f32::consts::PI;
+use winit::event::{ElementState, MouseButton};
 
 pub struct Camera {
     pub target: glm::Vec3,
@@ -55,13 +56,11 @@ impl Camera {
         self.last_y = y;
     }
 
-    pub fn process_mouse_button(&mut self, button: glfw::MouseButton, action: glfw::Action, x: f64, y: f64) {
-        if button == glfw::MouseButtonLeft {
-            if action == glfw::Action::Press {
+    pub fn process_mouse_button(&mut self, button: MouseButton, state: ElementState) {
+        if button == MouseButton::Left {
+            if state == ElementState::Pressed {
                 self.dragging = true;
-                self.last_x = x;
-                self.last_y = y;
-            } else if action == glfw::Action::Release {
+            } else if state == ElementState::Released {
                 self.dragging = false;
             }
         }
@@ -72,5 +71,46 @@ impl Camera {
         if self.radius < 1.0 {
             self.radius = 1.0;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_camera_zoom() {
+        let mut cam = Camera::new(glm::vec3(0.0, 0.0, 0.0), 10.0);
+        cam.process_scroll(2.0); // Zoom in
+        assert_eq!(cam.radius, 8.0);
+        cam.process_scroll(-3.0); // Zoom out
+        assert_eq!(cam.radius, 11.0);
+    }
+
+    #[test]
+    fn test_camera_drag_movement() {
+        let mut cam = Camera::new(glm::vec3(0.0, 0.0, 0.0), 10.0);
+        cam.dragging = true;
+        cam.last_x = 100.0;
+        cam.last_y = 100.0;
+
+        cam.process_mouse_move(150.0, 120.0); // Drag right and down
+
+        assert_ne!(cam.azimuth, 0.0);
+        assert_ne!(cam.elevation, PI / 2.0);
+    }
+
+    #[test]
+    fn test_camera_button_press_and_release() {
+        let mut cam = Camera::new(glm::vec3(0.0, 0.0, 0.0), 10.0);
+        assert!(!cam.dragging);
+        
+        // Press left mouse button
+        cam.process_mouse_button(MouseButton::Left, ElementState::Pressed);
+        assert!(cam.dragging);
+
+        // Release left mouse button
+        cam.process_mouse_button(MouseButton::Left, ElementState::Released);
+        assert!(!cam.dragging);
     }
 }

@@ -184,3 +184,40 @@ fn heatmap_cool(value: f64) -> glm::Vec4 {
     let b = c1.z + local_t as f32 * (c2.z - c1.z);
     glm::vec4(r, g, b, 1.0)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f64::consts::FRAC_PI_2;
+
+    #[test]
+    fn test_spherical_to_cartesian_axes() {
+        let r = 5.0;
+        let epsilon = 1e-10;
+
+        // Test point on +Y axis
+        let p_y = spherical_to_cartesian(r, 0.0, 0.0);
+        assert!((p_y.x - 0.0).abs() < epsilon);
+        assert!((p_y.y - r).abs() < epsilon);
+        assert!((p_y.z - 0.0).abs() < epsilon);
+
+        // Test point on +X axis
+        let p_x = spherical_to_cartesian(r, FRAC_PI_2, 0.0);
+        assert!((p_x.x - r).abs() < epsilon);
+        assert!((p_x.y - 0.0).abs() < epsilon);
+        assert!((p_x.z - 0.0).abs() < epsilon);
+
+        // Test point on +Z axis
+        let p_z = spherical_to_cartesian(r, FRAC_PI_2, FRAC_PI_2);
+        assert!((p_z.x - 0.0).abs() < epsilon);
+        assert!((p_z.y - 0.0).abs() < epsilon);
+        assert!((p_z.z - r).abs() < epsilon);
+    }
+
+    #[test]
+    fn test_generate_particles_count() {
+        let num_particles = 100;
+        let particles = generate_particles(num_particles);
+        assert_eq!(particles.len(), num_particles);
+    }
+}
