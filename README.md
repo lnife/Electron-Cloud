@@ -1,99 +1,150 @@
 # Electron-Cloud
 
-Electron-Cloud is a personal learning project written in Rust. It is inspired by the behavior and concepts of an existing C++ project and was created as an exercise to learn Rust, systems programming concepts, and safe memory management.  
+**Electron-Cloud** is a modular scientific computing toolkit written in Rust, designed to explore and implement foundational concepts in electronic structure theory and quantum chemistry.
 
-The original project that inspired this work is:  
+The project aims to bridge theoretical chemistry and modern systems-level programming by building numerically stable, memory-safe, and extensible abstractions for quantum mechanical modeling.
 
-https://github.com/kavan010/Atoms    
-Original author: kavan010    
-
-All credit for the original idea and design belongs to the original author.  
-
----  
-
-## Overview
-
-This repository contains a Rust implementation that follows similar goals and behavior as the original C++ project. The purpose of this project is educational: to practice translating program behavior into Rust, understand ownership and borrowing, and explore Rust tooling.  
-
-This project is not related to the Electron desktop framework. The name originates from the original project.  
-
----  
-
-## Project Structure
-```
-Electron-Cloud  
-├── src/ # Rust source files  
-├── Cargo.toml # Rust manifest and dependencies  
-├── Cargo.lock # Locked dependency versions  
-└── GEMINI.md # Project notes and auxiliary documentation
-```
----  
-
-## Requirements
-
-You need the Rust toolchain installed:  
-
-```
-rustup install stable  
-rustup default stable
-```
-Verify installation:
-```
-rustc --version  
-cargo --version
-```
 ---
 
-## Build
+## Motivation
 
-To compile the project
-```
-cargo build --release
-```
+Electronic structure theory forms the backbone of computational chemistry, yet many implementations remain opaque or tightly coupled to legacy architectures.
+
+Electron-Cloud was created to:
+
+- Develop a clean, modular foundation for quantum chemical modeling
+- Explore electronic structure methods from first principles
+- Leverage Rust’s memory safety and performance guarantees
+- Build transparent implementations for educational and research purposes
+
+This project reflects an ongoing effort to better understand and implement the mathematical structures underlying quantum chemical computations.
+
 ---
 
-## Run
+## Design Philosophy
 
-To run the project:
-```
+Electron-Cloud is built around the following principles:
+
+### 1. Theoretical Clarity
+
+Algorithms and structures are implemented in a way that mirrors their formal mathematical definitions wherever possible.
+
+### 2. Modularity
+
+Core components (basis sets, operators, wavefunctions, integrals) are designed to be loosely coupled and extensible.
+
+### 3. Numerical Stability
+
+Attention is given to precision handling, structured linear algebra workflows, and reproducible computation.
+
+### 4. Memory Safety & Performance
+
+Rust enables:
+
+- Zero-cost abstractions
+- Ownership-based memory guarantees
+- Safe concurrency for future scalability
+
+---
+
+## Core Concepts (In Development)
+
+The project is evolving and currently focuses on foundational building blocks for:
+
+- Representation of basis functions
+- Linear algebra structures for quantum systems
+- Operator formalism (Hamiltonians, overlap matrices)
+- Wavefunction modeling
+- Numerical integration frameworks
+
+Future expansions aim toward:
+
+- Hartree–Fock implementation
+- Density functional theory scaffolding
+- Orbital visualization utilities
+- Modular excited-state extensions
+
+---
+
+## Why Rust?
+
+Rust offers several advantages for scientific computing:
+
+- Strong compile-time safety guarantees
+- Fine-grained memory control
+- Concurrency without data races
+- Performance comparable to C/C++
+
+Electron-Cloud explores whether modern systems programming can provide a clean alternative foundation for computational chemistry infrastructure.
+
+---
+
+## Current Status
+
+Electron-Cloud is an active independent development project focused on architectural design and foundational implementations.
+
+It is not intended to replace established quantum chemistry packages but to serve as:
+
+- A research-learning platform
+- A modular electronic structure sandbox
+- A foundation for potential future method development
+
+---
+
+## Installation
+
+Clone the repository:
+
+
+
+Run:
+
+
+```bash
 cargo run
 ```
----
 
-## Learning Goals
 
-This repository exists primarily as a learning exercise:
 
-- Practice writing idiomatic Rust
 
-- Understand ownership, borrowing, and lifetimes
 
-- Translate program behavior across languages
+```bash
+git clone https://github.com/lnife/Electron-Cloud.git
+cd Electron-Cloud
+cargo build
+```
 
-- Explore Rust project structure and tooling using Cargo
 
----
-
-## Attribution and Status
-
-This project is inspired by the behavior and ideas of the original C++ repository:
-
-[https://github.com/kavan010/Atoms](https://github.com/kavan010/Atoms?utm_source=chatgpt.com)
-
-The original repository does not specify a license. In the absence of an explicit license, no reuse rights are assumed for the original work. This repository is therefore shared as a personal learning and portfolio artifact only.
-
-This repository is not offered as open source software, and no license is granted for reuse or redistribution at this time. The code is published for educational reference and personal documentation purposes.
-
-If the original author later provides explicit permission or adds a license to the original project, the status of this repository may be updated accordingly.
 
 ---
 
-## AI Assistance
+## Roadmap
 
-This project, including this README file and parts of the source code, was developed with the assistance of an AI programming partner.
+- Basis function abstraction layer
+- Integral evaluation module
+- Minimal Hartree–Fock prototype
+- Modular Hamiltonian representation
+- Numerical benchmarking utilities
+- Documentation expansion
 
 ---
 
-## Disclaimer
+## Background
 
-This repository is not an official continuation of the original project. It is an independent educational implementation created for learning Rust.
+This project is developed alongside formal training in:
+
+- Density Functional Theory
+- Magnetically Induced Current Density Analysis
+- Vibronic Coupling Models
+- Electronic Structure Theory
+
+Electron-Cloud reflects an effort to deepen understanding of quantum chemical methods by constructing their computational foundations directly.
+
+---
+
+## Author
+
+**Bhaskar Malviya**  
+Computational Chemistry | Electronic Structure Theory | Scientific Programming  
+
+GitHub: https://github.com/lnife](https://github.com/lnife)
