@@ -1,8 +1,9 @@
-use nalgebra_glm as glm;
+use nalgebra_glm as glm; //OpenGL-style math library
 use std::io::{self, Write};
-use std::sync::{Arc, Mutex};
-use wgpu::util::DeviceExt;
+use std::sync::{Arc, Mutex}; // Shared mutable state (camera)
+use wgpu::util::DeviceExt; //talks to gpu, i have no clue how this works all hail the mighty AI
 use winit::{
+    //window + input system
     event::*,
     event_loop::EventLoop,
     keyboard::{Key, NamedKey},
@@ -10,50 +11,56 @@ use winit::{
 };
 
 mod camera;
-mod geometry;
-mod physics;
+mod geometry; //will try to make i gradient version of it
+mod physics; //this could be better i guess
 mod texture;
 
 use camera::Camera;
 
-#[repr(C)]
+#[repr(C)] //just like C,coz gpu is a bitch need to be fed binary
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct CameraUniform {
-    view_proj: [[f32; 4]; 4],
+    view_proj: [[f32; 4]; 4], //matrix done by cpu i guess,because GPU dosent understand glm::Mat4, big L for Rust
 }
 
 impl CameraUniform {
     fn new() -> Self {
         Self {
-            view_proj: glm::Mat4::identity().into(),
+            view_proj: glm::Mat4::identity().into(), //converting into C type raw arrey, also
+                                                     //identity is only matrix i can solve
         }
     }
 
     fn update_view_proj(&mut self, camera: &Camera, projection: &glm::Mat4) {
-        self.view_proj = (projection * camera.get_view_matrix()).into();
+        //classic mutation
+        //and borowwing
+        self.view_proj = (projection * camera.get_view_matrix()).into(); //matrix multiplication
+                                                                         //on cpu
     }
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct InstanceRaw {
+    //coz me no job and science have no money so is PhD, me have old cpu and shitty intgrated gpu cant afford 100,000 seprate spheres
     position: [f32; 3],
     color: [f32; 4],
 }
 
 struct State<'a> {
+    //defining state and its lifetime parametes
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
-    window: &'a Window,
+    window: &'a Window, //borrowing the same parametes
     camera: Arc<Mutex<Camera>>,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     render_pipeline: wgpu::RenderPipeline,
-    sphere_vertex_buffer: wgpu::Buffer,
+    sphere_vertex_buffer: wgpu::Buffer, //ai is behind all this
     num_sphere_vertices: u32,
     instance_buffer: wgpu::Buffer,
     num_instances: u32,
@@ -61,6 +68,9 @@ struct State<'a> {
 }
 
 impl<'a> State<'a> {
+    //i hoped that ai would do this part own its own, but it sure like to
+    //hallucinate when things gets actually tough
+    //its been 15 days i havent able to make it work
     async fn new(window: &'a Window, num_particles: usize) -> Self {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -107,7 +117,7 @@ impl<'a> State<'a> {
             desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
-
+        //i need Claude!!! only that was able to provide me with correct code
         let depth_view = texture::create_depth_texture(&device, &config, "depth_texture");
 
         let camera = Arc::new(Mutex::new(Camera::new(glm::vec3(0.0, 0.0, 0.0), 30.0)));
@@ -210,7 +220,7 @@ impl<'a> State<'a> {
             },
             multiview: None,
         });
-
+        //man fuck this shit if youre reading this FUCK YOU TOOOOOOOOOO
         let sphere_vertices_glm = geometry::generate_sphere(1.0, 10, 10);
         let sphere_vertices: Vec<[f32; 3]> = sphere_vertices_glm
             .iter()
@@ -314,6 +324,7 @@ impl<'a> State<'a> {
     }
 
     fn update(&mut self) {
+        //this mfking mut, forgetting to mutate this everytime!!!!!
         let projection = glm::perspective_zo(
             self.size.width as f32 / self.size.height as f32,
             glm::radians(&glm::vec1(45.0))[0],
@@ -382,7 +393,10 @@ impl<'a> State<'a> {
     }
 }
 
+// finally it worked, imma sleep for now
+
 fn get_quantum_number(prompt: &str, default: i32) -> i32 {
+    //simple input prompt
     loop {
         print!("{} (default: {}): ", prompt, default);
         io::stdout().flush().unwrap();
@@ -405,13 +419,15 @@ fn get_quantum_number(prompt: &str, default: i32) -> i32 {
     }
 }
 
+// in need of function which ask for custom number of particle 5s orbital is almost invisible
+
 fn get_particle_count() -> usize {
     loop {
         println!("\nSelect particle count:");
         println!("  1. Low    (10,000)");
         println!("  2. Default (100,000)");
         println!("  3. High   (500,000)");
-        println!("  4. Custom");
+        println!("  4. Custom"); //maybe set some predetermined
         print!("Enter choice (default: 2): ");
         io::stdout().flush().unwrap();
 
@@ -458,6 +474,7 @@ fn get_particle_count() -> usize {
 }
 
 pub fn main() {
+    //TODO---maybe get some tkinter-type dialogue box
     env_logger::init();
     println!("Enter initial quantum numbers for the simulation.");
     let (n, l, m) = loop {

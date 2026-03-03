@@ -1,4 +1,3 @@
-use nalgebra_glm as glm;
 use std::f32::consts::PI;
 use winit::event::{ElementState, MouseButton};
 
@@ -39,7 +38,11 @@ impl Camera {
     }
 
     pub fn get_view_matrix(&self) -> glm::Mat4 {
-        glm::look_at(&self.get_position(), &self.target, &glm::vec3(0.0, 1.0, 0.0))
+        glm::look_at(
+            &self.get_position(),
+            &self.target,
+            &glm::vec3(0.0, 1.0, 0.0),
+        )
     }
 
     pub fn process_mouse_move(&mut self, x: f64, y: f64) {
@@ -104,7 +107,7 @@ mod tests {
     fn test_camera_button_press_and_release() {
         let mut cam = Camera::new(glm::vec3(0.0, 0.0, 0.0), 10.0);
         assert!(!cam.dragging);
-        
+
         // Press left mouse button
         cam.process_mouse_button(MouseButton::Left, ElementState::Pressed);
         assert!(cam.dragging);
