@@ -281,34 +281,22 @@ fn get_particle_color(r: f64, theta: f64, _phi: f64, n: i32, l: i32, m: i32) -> 
 
     let angular = associated_legendre(l, m.abs(), theta.cos());
 
-    let intensity = r_wave * r_wave * angular * angular;
+    let raw = r_wave * r_wave * angular * angular;
 
-    heatmap_cool(intensity * 1.5 * (5.0f64).powi(n))
+    // logarithmic compression (BEST choice)
+    let intensity = (raw * 100.0).ln_1p().min(1.0);
+    heatmap_cool(intensity)
 }
 
 // simple linear heatmap from black to white
 // purely for visual contrast, not physical meaning
 fn heatmap_cool(value: f64) -> glm::Vec4 {
-    let value = value.max(0.0).min(1.0);
+    let v = value.max(0.0).min(1.0) as f32;
 
-    let colors = [
-        glm::vec4(0.0, 0.0, 0.0, 1.0),
-        glm::vec4(0.0, 0.0, 0.5, 1.0),
-        glm::vec4(0.0, 0.8, 1.0, 1.0),
-        glm::vec4(1.0, 1.0, 1.0, 1.0),
-    ];
+    // smooth gradient: dark → blue → cyan (NO WHITE)
+    let r = 0.0;
+    let g = v * 0.9;
+    let b = 0.4 + 0.6 * v;
 
-    let scaled_v = value * (colors.len() - 1) as f64;
-    let i = scaled_v as usize;
-    let next_i = (i + 1).min(colors.len() - 1);
-    let local_t = scaled_v - i as f64;
-
-    let c1 = colors[i];
-    let c2 = colors[next_i];
-
-    let r = c1.x + local_t as f32 * (c2.x - c1.x);
-    let g = c1.y + local_t as f32 * (c2.y - c1.y);
-    let b = c1.z + local_t as f32 * (c2.z - c1.z);
-
-    glm::vec4(r, g, b, 1.0)
+    glm::vec4(r, g, b, 0.6)
 }
