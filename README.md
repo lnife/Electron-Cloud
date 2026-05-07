@@ -1,183 +1,284 @@
-# Electron Cloud
+# Orbital Space — Electron Cloud Simulator
 
-A modular electronic structure visualization toolkit written in Rust.
+A Rust-based 3D visualizer for hydrogenic atomic orbitals.
 
-Electron Cloud explores the computational foundations of hydrogenic wavefunctions by directly sampling and rendering their probability densities in three dimensions.  
+This project samples the probability density of idealized one-electron hydrogen-like orbitals and renders the resulting electron cloud in real time using `wgpu`.
 
-It is both a quantum mechanics study and a systems-level programming experiment.
+## Demo
 
----
+### 2p<sub>z</sub> orbital
+
+![2pz orbital demo](assets/2pz.gif)
+
+### 3d<sub>z²</sub> orbital
+
+![3dz2 orbital demo](assets/3dz2.gif)
 
 ## Overview
 
-Electron Cloud generates Monte Carlo samples of hydrogenic orbitals defined by quantum numbers (n, l, m) and renders them in real time using GPU instanced rendering.
+Orbital Space generates Monte Carlo samples of hydrogenic orbitals defined by the quantum numbers `(n, l, m)`:
 
-Rather than plotting analytical surfaces, the wavefunction is sampled probabilistically:
+- `n` — principal quantum number
+- `l` — azimuthal quantum number
+- `m` — magnetic quantum number
 
-- Radial distribution sampled from |Rₙₗ(r)|² r²  
-- Angular distribution sampled from |Pₗᵐ(cosθ)|² sinθ  
-- Azimuthal angle φ sampled uniformly  
+Rather than drawing analytical orbital surfaces, the program samples the probability distribution directly. Each sample becomes a small rendered particle in 3D space.
 
-Each sample becomes a particle rendered as a small sphere.  
-Color encodes probability density intensity.
-
-The result is a spatial electron cloud consistent with the underlying quantum mechanical distribution.
-
----
+The visualization represents orbital probability density. It does not show a classical electron trajectory.
 
 ## Motivation
 
-This project was developed alongside formal training in:
+This project was built as both a quantum-mechanics study and a systems-programming exercise.
 
-- Electronic Structure Theory  
-- Density Functional Theory  
-- Vibronic Coupling Models  
-- Quantum Chemical Wavefunctions  
+The goal was to understand how analytical hydrogenic wavefunctions can be turned into a numerical visualization pipeline:
 
-Instead of relying on black-box visualization software, this repository constructs both the numerical sampling and the rendering pipeline from first principles.
+- constructing hydrogenic radial functions
+- evaluating associated Laguerre and Legendre polynomials
+- sampling probability distributions using cumulative distribution functions
+- transforming spherical samples into Cartesian coordinates
+- connecting CPU-side physics calculations with a GPU rendering pipeline
+- rendering many sampled particles efficiently using modern graphics tools
 
-The objective is not photorealism.
+The project is intended for learning, visualization, and scientific-programming practice rather than production quantum chemistry.
 
-The objective is understanding:
+## Physics Background
 
-- Construction of hydrogenic radial functions  
-- Numerical behavior of associated Laguerre and Legendre polynomials  
-- Probability density → spatial sampling transformations  
-- CPU-side physics integration with GPU rendering pipelines  
-- Instanced rendering architecture in modern graphics APIs  
+For a hydrogen-like one-electron atom, the orbital wavefunction can be separated into radial and angular parts:
 
-This project serves as both a physics laboratory and a systems programming exercise.
+```text
+ψ(r, θ, φ) = R_nl(r) Y_lm(θ, φ)
+```
 
----
+The probability density is proportional to:
+
+```text
+|ψ(r, θ, φ)|²
+```
+
+In spherical coordinates, the volume element is:
+
+```text
+dV = r² sin(θ) dr dθ dφ
+```
+
+The implementation samples:
+
+- the radial distribution using the `r²` Jacobian factor
+- the polar angular distribution using the `sin(θ)` factor
+- the azimuthal angle `φ` uniformly from `0` to `2π`
+
+The Bohr radius is set to `1.0`, so the visualization uses atomic-unit-style scaling.
+
+## How It Works
+
+1. The program asks the user for quantum numbers and particle count.
+2. It validates that the quantum numbers are physically allowed.
+3. It builds cumulative distribution functions for the radial and angular probability distributions.
+4. It samples `r`, `θ`, and `φ`.
+5. It converts the spherical coordinates to Cartesian coordinates.
+6. It maps probability-density intensity to particle color.
+7. It renders the sampled cloud in a 3D window.
+
+## Quantum Number Validation
+
+The input quantum numbers must satisfy:
+
+```text
+n > 0
+0 ≤ l < n
+-l ≤ m ≤ l
+```
+
+Invalid inputs are rejected before rendering starts.
 
 ## Architecture
 
-### Physics Layer (`physics.rs`)
+### Physics Layer
 
-- Associated Laguerre polynomial implementation  
-- Associated Legendre polynomial implementation  
-- Radial and angular cumulative distribution construction  
-- Inverse transform sampling  
-- Monte Carlo particle generation  
+The physics layer handles the orbital sampling logic:
 
-All physics calculations are performed in `f64` for numerical stability.
+- associated Laguerre polynomial recurrence
+- associated Legendre polynomial recurrence
+- radial cumulative distribution construction
+- angular cumulative distribution construction
+- inverse transform sampling
+- Monte Carlo particle generation
+- probability-density-based color mapping
 
----
+Most physics calculations are performed in `f64` before being converted for rendering.
 
-### Geometry Layer (`geometry.rs`)
+### Geometry Layer
 
-- Procedural sphere mesh generation  
-- Indexed triangle construction  
-- Base mesh reused for instanced rendering  
+The geometry layer generates the base sphere mesh used for rendered particles:
 
----
+- procedural sphere vertex generation
+- indexed triangle construction
+- expansion into a flat vertex list for the rendering pipeline
 
-### Camera System (`camera.rs`)
+Each sampled point is rendered as a small sphere-like particle.
 
-- Orbit-style spherical coordinate camera  
-- Spherical → Cartesian coordinate conversion  
-- View matrix construction using `look_at`  
+### Camera System
 
-The camera logic mirrors the spherical coordinate framework used in orbital sampling.
+The camera system supports orbit-style viewing:
 
----
+- mouse-based camera rotation
+- scroll-based zooming
+- spherical-coordinate-style camera movement around the cloud
 
 ### Rendering Pipeline
 
-- `wgpu` backend  
-- GPU instanced rendering for particle efficiency  
-- Depth buffering for proper occlusion  
-- Minimal shader pipeline (no lighting model)  
+The renderer uses:
 
-All physics remains CPU-side.  
-The GPU is used exclusively for visualization.
+- `wgpu` for GPU rendering
+- `winit` for window and event handling
+- depth buffering for occlusion
+- instanced rendering for efficient particle visualization
+- WGSL shaders for the GPU pipeline
 
----
+The physics calculations are performed on the CPU. The GPU is used for visualization.
 
 ## Numerical Strategy
 
 ### Radial Sampling
 
-- Discretized CDF construction  
-- Cached per (n, l) pair  
-- Binary search inversion for sampling  
+The radial coordinate is sampled by constructing a discretized cumulative distribution function for each `(n, l)` pair.
+
+The sampled radial probability includes the spherical Jacobian term:
+
+```text
+r² |R_nl(r)|²
+```
+
+The CDF is cached so that the same `(n, l)` distribution does not need to be rebuilt repeatedly.
 
 ### Angular Sampling
 
-- Discretized CDF construction  
-- Cached per (l, |m|) pair  
+The polar angle `θ` is sampled from a discretized angular CDF based on:
 
-Caching prevents recomputation of expensive polynomial evaluations during large particle simulations.
+```text
+sin(θ) |P_l^m(cosθ)|²
+```
 
----
+The angular CDF is cached for each `(l, |m|)` pair.
+
+### Azimuthal Sampling
+
+The azimuthal angle `φ` is sampled uniformly from:
+
+```text
+0 ≤ φ < 2π
+```
 
 ## Controls
 
+```text
+Mouse drag    Rotate camera
+Scroll wheel  Zoom in/out
+Esc           Exit
 ```
-Mouse Drag  → Orbit camera  
-Scroll      → Zoom  
-Esc         → Exit  
-```
-
----
 
 ## Running the Project
+
+Make sure Rust is installed, then clone the repository and run:
 
 ```bash
 cargo run --release
 ```
 
-You will be prompted for:
+Release mode is recommended for smoother rendering.
 
-- Principal quantum number (n)
-- Azimuthal quantum number (l)
-- Magnetic quantum number (m)
-- Particle count
+When the program starts, it prompts for:
 
----
+- principal quantum number `n`
+- azimuthal quantum number `l`
+- magnetic quantum number `m`
+- particle count
+
+## Example Inputs
+
+For a `2p_z`-like orbital:
+
+```text
+n = 2
+l = 1
+m = 0
+```
+
+For a `3d_z²`-like orbital:
+
+```text
+n = 3
+l = 2
+m = 0
+```
+
+## Project Structure
+
+```text
+src/
+├── main.rs        # Program entry point, input handling, and render loop
+├── physics.rs     # Orbital sampling, radial/angular functions, color mapping
+├── geometry.rs    # Sphere mesh generation for rendered particles
+├── camera.rs      # Camera movement, rotation, and zoom controls
+├── texture.rs     # Depth texture setup for rendering
+└── shaders.wgsl   # GPU shader code
+
+assets/
+├── 2pz.gif
+└── 3dz2.gif
+```
+
+## Dependencies
+
+This project uses Rust crates for rendering, math, random sampling, and special functions, including:
+
+- `wgpu`
+- `winit`
+- `nalgebra-glm`
+- `rand`
+- `statrs`
+- `lazy_static`
+- `pollster`
+
+See `Cargo.toml` for the exact dependency list.
 
 ## Limitations
 
-- Hydrogenic orbitals only  
-- No relativistic corrections  
-- No spin or many-electron effects  
-- No lighting or physically-based shading  
-- CPU-bound sampling  
+This project currently focuses on visualization of analytical hydrogenic orbitals.
 
-This is not a production quantum chemistry package.  
-It is a computational learning and visualization tool.
+Current limitations include:
 
----
+- hydrogenic one-electron orbitals only
+- no multi-electron atoms
+- no spin treatment
+- no electron-electron correlation
+- no relativistic corrections
+- no molecular orbitals
+- no time-dependent dynamics
+- CPU-side sampling
+- simple color mapping for visual contrast rather than a calibrated physical observable
 
 ## Design Philosophy
 
-Physics and rendering are intentionally decoupled.
+Physics and rendering are intentionally separated.
 
-The mathematical structure (wavefunctions, sampling, normalization) was implemented deliberately to reinforce conceptual understanding of quantum mechanical foundations.
+The project focuses on building the sampling and rendering pipeline directly instead of relying on black-box orbital visualization software. The main emphasis is understanding how quantum-mechanical probability distributions become numerical samples and how those samples can be rendered efficiently.
 
-Portions of the GPU pipeline were developed with assistance from AI tools.  
-The numerical methods, orbital sampling logic, and mathematical formulation were implemented directly as part of ongoing theoretical chemistry training.
+## Future Improvements
 
-This repository represents a self-taught systems programming effort layered on top of a computational chemistry background.
+Possible extensions include:
 
----
-
-## Future Directions
-
-- Gradient-based shading
-- Nodal surface highlighting
-- Radial distribution plotting
+- real combinations of spherical harmonics
+- improved angular normalization
+- nodal surface highlighting
+- radial distribution plotting
+- adjustable particle size and color scaling
+- UI controls for changing orbitals without restarting
+- frame or animation export
 - GPU compute-based sampling
-- Extension toward simple multi-electron approximations
-- Modular electronic structure components
+- simple extensions toward multi-electron visualization models
 
----
+## Author
 
-#### Author
-
-Lnifelias Stargarden  
-Real name: Bhaskar Malviya  
-
+Bhaskar Malviya  
 Computational Chemistry | Quantum Chemistry | Scientific Programming
-
----
