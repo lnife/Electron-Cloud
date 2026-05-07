@@ -4,17 +4,24 @@ A Rust-based 3D visualizer for hydrogenic atomic orbitals.
 
 This project samples the probability density of idealized one-electron hydrogen-like orbitals and renders the resulting electron cloud in real time using `wgpu`.
 
+# 
+
 ## Demo
 
-### 2p<sub>z</sub> orbital
-
-![2pz orbital demo](assets/2pz.gif)
-
-### 3d<sub>z²</sub> orbital
-
-![3dz2 orbital demo](assets/3dz2.gif)
-
-## Overview
+<table>
+  <tr>
+    <td align="center"><b>2p<sub>z</sub> orbital</b></td>
+    <td align="center"><b>3d<sub>z²</sub> orbital</b></td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="assets/2pz.gif" width="380" alt="2pz orbital demo">
+    </td>
+    <td align="center">
+      <img src="assets/3dz2.gif" width="380" alt="3dz2 orbital demo">
+    </td>
+  </tr>
+</table>## Overview
 
 Orbital Space generates Monte Carlo samples of hydrogenic orbitals defined by the quantum numbers `(n, l, m)`:
 
