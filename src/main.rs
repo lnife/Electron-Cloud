@@ -1,6 +1,7 @@
 use nalgebra_glm as glm; //OpenGL-style math library
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex}; // Shared mutable state (camera)
+use std::time::Instant;
 use wgpu::util::DeviceExt; //talks to gpu, i have no clue how this works all hail the mighty AI
 use winit::{
     //window + input system
@@ -47,6 +48,24 @@ struct InstanceRaw {
     color: [f32; 4],
 }
 
+impl InstanceRaw {
+    fn from_particle(particle: &physics::Particle) -> Self {
+        Self {
+            position: [
+                particle.position.x as f32,
+                particle.position.y as f32,
+                particle.position.z as f32,
+            ],
+            color: [
+                particle.color.x,
+                particle.color.y,
+                particle.color.z,
+                particle.color.w,
+            ],
+        }
+    }
+}
+
 struct State<'a> {
     //defining state and its lifetime parametes
     surface: wgpu::Surface<'a>,
@@ -62,9 +81,12 @@ struct State<'a> {
     render_pipeline: wgpu::RenderPipeline,
     sphere_vertex_buffer: wgpu::Buffer, //ai is behind all this
     num_sphere_vertices: u32,
+    particles: Vec<physics::Particle>,
+    instance_data: Vec<InstanceRaw>,
     instance_buffer: wgpu::Buffer,
     num_instances: u32,
     depth_view: wgpu::TextureView,
+    last_frame: Instant,
 }
 
 impl<'a> State<'a> {
@@ -239,20 +261,14 @@ impl<'a> State<'a> {
 
         let instance_data = particles
             .iter()
-            .map(|p| InstanceRaw {
-                position: [
-                    p.position.x as f32,
-                    p.position.y as f32,
-                    p.position.z as f32,
-                ],
-                color: [p.color.x, p.color.y, p.color.z, p.color.w],
-            })
+            .map(InstanceRaw::from_particle)
             .collect::<Vec<_>>();
+        let num_instances = particles.len() as u32;
 
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::VERTEX,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
 
         Self {
@@ -269,9 +285,12 @@ impl<'a> State<'a> {
             render_pipeline,
             sphere_vertex_buffer,
             num_sphere_vertices,
+            particles,
+            instance_data,
             instance_buffer,
-            num_instances: particles.len() as u32,
+            num_instances,
             depth_view,
+            last_frame: Instant::now(),
         }
     }
 
@@ -324,6 +343,22 @@ impl<'a> State<'a> {
     }
 
     fn update(&mut self) {
+        let now = Instant::now();
+        let dt = now.duration_since(self.last_frame).as_secs_f64().min(1.0 / 15.0);
+        self.last_frame = now;
+
+        physics::advance_particles(&mut self.particles, dt * 30.0);
+
+        for (raw, particle) in self.instance_data.iter_mut().zip(self.particles.iter()) {
+            *raw = InstanceRaw::from_particle(particle);
+        }
+
+        self.queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&self.instance_data),
+        );
+
         //this mfking mut, forgetting to mutate this everytime!!!!!
         let projection = glm::perspective_zo(
             self.size.width as f32 / self.size.height as f32,
@@ -473,6 +508,37 @@ fn get_particle_count() -> usize {
     }
 }
 
+fn get_spherical_harmonic_mode() -> bool {
+    loop {
+        println!("\nSelect spherical harmonic basis:");
+        println!("  1. Real spherical harmonics (default)");
+        println!("     General real basis with standard z-axis polar angle.");
+        println!("     m > 0 uses cos(m phi), m < 0 uses sin(|m| phi), m = 0 is unchanged.");
+        println!("     Samples |Y_lm_real(theta, phi)|^2 and colors the sign blue/red.");
+        println!("  2. Complex spherical harmonics");
+        println!("     Uses phi-independent density from |exp(i m phi)|^2.");
+        println!("     Keeps the moving probability-flow visualization.");
+        print!("Enter choice (default: 1): ");
+        io::stdout().flush().unwrap();
+
+        let mut input = String::new();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+        let trimmed = input.trim();
+
+        if trimmed.is_empty() {
+            return true;
+        }
+
+        match trimmed.parse::<u32>() {
+            Ok(1) => return true,
+            Ok(2) => return false,
+            _ => println!("\nInvalid choice. Please enter 1 or 2."),
+        }
+    }
+}
+
 pub fn main() {
     //TODO---maybe get some tkinter-type dialogue box
     env_logger::init();
@@ -481,6 +547,7 @@ pub fn main() {
         let n = get_quantum_number("Principal quantum number (n)", 2);
         let l = get_quantum_number("Azimuthal quantum number (l)", 1);
         let m = get_quantum_number("Magnetic quantum number (m)", 0);
+        // let m = get_quantum_number("Magnetic quantum number (m)", 1);
 
         if n <= 0 {
             println!("\nError: Principal quantum number (n) must be positive.");
@@ -501,6 +568,7 @@ pub fn main() {
     *physics::N.lock().unwrap() = n;
     *physics::L.lock().unwrap() = l;
     *physics::M.lock().unwrap() = m;
+    *physics::USE_REAL_SPHERICAL_HARMONICS.lock().unwrap() = get_spherical_harmonic_mode();
 
     let num_particles = get_particle_count();
 

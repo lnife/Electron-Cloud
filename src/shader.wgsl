@@ -33,7 +33,7 @@ fn vs_main(
     var out: VertexOutput;
 
     // small uniform scale so each sampled point becomes a tiny sphere
-    let scale = 0.05;
+    let scale = 0.03;
 
     // final position = scaled sphere vertex + instance offset
     // then transformed by view_proj into clip space
